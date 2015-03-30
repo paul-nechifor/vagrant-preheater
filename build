@@ -1,0 +1,83 @@
+#!/usr/bin/env python2
+
+"""
+Build a CentOS image that is preheated for a certain Vagrant project.
+"""
+
+import json
+import os
+import sys
+
+ROOT = os.path.dirname(os.path.realpath(__file__))
+
+
+def ensure_bento_exists():
+    os.system("""
+        if [ ! -e '%(root)s/bento' ]; then
+            wget -q https://github.com/chef/bento/archive/master.zip
+            unzip master.zip
+            rm master.zip
+            mv bento-master bento
+        fi
+    """ % {'root': ROOT})
+
+
+def create_new_box_template(args):
+    name = args.get('name')
+    base_package = args.get('base_package', 'centos-6.6-x86_64')
+    base_path = os.path.join(ROOT, 'bento/packer', base_package + '.json')
+    with open(base_path) as base_json:
+        box = json.load(base_json)
+
+    box['post-processors'][0]['output'] = os.path.join(ROOT, name + '.box')
+    for builder in box['builders']:
+        if 'vboxmanage' not in builder:
+            continue
+        builder['vm_name'] = name
+        builder['headless'] = True
+
+    provis = box['provisioners']
+    scripts = provis[0]['scripts']
+    scripts.insert(len(scripts) - 1, 'scripts/custom.sh')
+    provis.insert(0, {
+        'type': 'file',
+        'source': args['project'],
+        'destination': '/tmp/project'
+    })
+
+    script = """#!/bin/bash -aux
+cd /tmp/project
+bash %s
+yum -y clean all
+rm -fr /tmp/project
+    """ % args['command']
+
+    script_path = os.path.join(ROOT, 'bento/packer/scripts/custom.sh')
+    open(script_path, 'w').write(script)
+
+    box_path = os.path.join(ROOT, 'bento/packer', name + '.json')
+    open(box_path, 'w').write(json.dumps(box, indent=2))
+
+
+def main():
+    if len(sys.argv) < 4:
+        print 'Not enough args.'
+        exit(1)
+    ensure_bento_exists()
+    name = sys.argv[1]
+    create_new_box_template({
+        'name': name,
+        'project': os.path.realpath(sys.argv[2]),
+        'command': sys.argv[3],
+    })
+    os.system("""
+        cd '%(root)s/bento/packer'
+        export PACKER_CACHE_DIR="$HOME/.packer_cache"
+        packer build -only=virtualbox-iso '%(name)s'.json
+    """ % {'root': ROOT, 'name': name})
+    # TODO: Remove the box json
+    # TODO: Remove the custom script.
+
+
+if __name__ == '__main__':
+    main()
