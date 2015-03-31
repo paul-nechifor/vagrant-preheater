@@ -9,7 +9,7 @@ bring them up faster.
     ./build centos-6.6-preheated ./sample scripts/provision.sh
 
     # Add it.
-    vagrant box add centos-6.6-preheated bento/centos-6.6-preheated.box
+    vagrant box add centos-6.6-preheated centos-6.6-preheated.box --force
 
     # Start the regular box.
     cd sample

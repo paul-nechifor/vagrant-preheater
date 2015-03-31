@@ -39,15 +39,31 @@ def create_new_box_template(args):
     provis = box['provisioners']
     scripts = provis[0]['scripts']
     scripts.insert(len(scripts) - 1, 'scripts/custom.sh')
+    for i, script in enumerate(scripts):
+        if script == 'scripts/common/vmtools.sh':
+            scripts.insert(i, 'scripts/update.sh')
+            break
     provis.insert(0, {
         'type': 'file',
         'source': args['project'],
         'destination': '/tmp/project'
     })
 
+    update_path = os.path.join(ROOT, 'bento/packer/scripts/update.sh')
+    open(update_path, 'w').write("""#!/bin/bash -aux
+yum -y shell <<<"
+    update
+    install dkms
+    run
+"
+reboot
+sleep 120
+""")
+
     script = """#!/bin/bash -aux
 cd /tmp/project
-bash %s
+bash '%s'
+cd
 yum -y clean all
 rm -fr /tmp/project
     """ % args['command']
