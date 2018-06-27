@@ -1,3 +1,7 @@
+# This repository has been moved to [gitlab.com/paul-nechifor/vagrant-preheater](http://gitlab.com/paul-nechifor/vagrant-preheater).
+
+Old readme:
+
 # Vagrant Preheater
 
 Build Vagrant boxes that have been provisioned partially/recently so you can
